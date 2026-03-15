@@ -1,21 +1,14 @@
 #!/bin/bash
 
 # Evaluate DiffusionVL-QwenVL and Qwen2.5-VL base model on the same task list.
-# If model paths are not local directories, this script will try to download
-# from Hugging Face Hub into the local cache automatically.
-#
-# Usage:
-#   cd eval
-#   DIFFUSIONVL_MODEL_PATH=hustvl/DiffusionVL-Qwen2.5VL-7B \
-#   BASE_MODEL_PATH=Qwen/Qwen2.5-VL-7B-Instruct \
+
 #   TASK_NAMES="mmmu_val,mme,mmvp,mathvision,mathvista" \
 #   TOTAL_GPUS=8 \
 #   bash scripts/eval_qwenvl_and_base.sh
 
 set -euo pipefail
 
-DIFFUSIONVL_MODEL_PATH="${DIFFUSIONVL_MODEL_PATH:-hustvl/DiffusionVL-Qwen2.5VL-7B}"
-BASE_MODEL_PATH="${BASE_MODEL_PATH:-Qwen/Qwen2.5-VL-7B-Instruct}"
+
 OUTPUT_PATH="${OUTPUT_PATH:-./eval_results/qwenvl_vs_base}"
 TASK_NAMES="${TASK_NAMES:-mmmu_val,mme,mmvp,mathvision,mathvista}"
 TOTAL_GPUS="${TOTAL_GPUS:-8}"
@@ -28,38 +21,6 @@ CONV_TEMPLATE="${CONV_TEMPLATE:-qwen_2_5}"
 DIFFUSIONVL_MODEL="llava_onevision_diffusionvl_qwenvl"
 BASE_MODEL="qwen2_5_vl"
 
-resolve_model_path() {
-    local model_ref="$1"
-
-    if [[ -d "$model_ref" ]]; then
-        echo "$model_ref"
-        return 0
-    fi
-
-    echo "[INFO] Local path not found for '$model_ref'. Trying Hugging Face Hub download..." >&2
-
-    python - "$model_ref" <<'PY'
-import sys
-from huggingface_hub import snapshot_download
-
-model_ref = sys.argv[1]
-
-try:
-    local_path = snapshot_download(repo_id=model_ref)
-except Exception as e:
-    print(f"[ERROR] Failed to download '{model_ref}' from Hugging Face Hub: {e}", file=sys.stderr)
-    print("[ERROR] Provide an existing local path or a valid Hugging Face repo id.", file=sys.stderr)
-    raise SystemExit(1)
-
-print(local_path)
-PY
-}
-
-mkdir -p "$OUTPUT_PATH"
-
-# Resolve model refs (local path or HF repo id) to usable local checkpoint paths.
-DIFFUSIONVL_MODEL_PATH_RESOLVED="$(resolve_model_path "$DIFFUSIONVL_MODEL_PATH")"
-BASE_MODEL_PATH_RESOLVED="$(resolve_model_path "$BASE_MODEL_PATH")"
 
 IFS=',' read -ra TASKS <<< "$TASK_NAMES"
 
@@ -74,13 +35,7 @@ for task in "${TASKS[@]}"; do
     else
         DIFF_GEN_KWARGS="{\"temperature\":0, \"gen_length\":128, \"steps\":$STEPS, \"max_new_tokens\":128, \"remasking_strategy\": \"low_confidence_static\"}"
     fi
-    DIFF_MODEL_ARGS="pretrained=$DIFFUSIONVL_MODEL_PATH_RESOLVED,conv_template=$CONV_TEMPLATE,model_name=diffusionvl_qwenvl,enable_bd3lm=True,bd3lm_block_size=$BLOCK_SIZE"
-    TASK_QUEUE+=("$DIFFUSIONVL_MODEL|$DIFFUSIONVL_MODEL_PATH_RESOLVED|$task|$DIFF_GEN_KWARGS|$DIFF_MODEL_ARGS|DiffusionVL-QwenVL")
 
-    # Base model generation settings (no BD3-LM args)
-    BASE_GEN_KWARGS='{"temperature":0,"max_new_tokens":128}'
-    BASE_MODEL_ARGS="pretrained=$BASE_MODEL_PATH_RESOLVED"
-    TASK_QUEUE+=("$BASE_MODEL|$BASE_MODEL_PATH_RESOLVED|$task|$BASE_GEN_KWARGS|$BASE_MODEL_ARGS|Qwen2.5-VL-Base")
 done
 
 TOTAL_TASKS=${#TASK_QUEUE[@]}
@@ -94,10 +49,7 @@ for ((gpu=0; gpu<TOTAL_GPUS; gpu++)); do
 done
 
 echo "=========================================="
-echo "DiffusionVL model ref: $DIFFUSIONVL_MODEL_PATH"
-echo "DiffusionVL model path: $DIFFUSIONVL_MODEL_PATH_RESOLVED"
-echo "Base model ref: $BASE_MODEL_PATH"
-echo "Base model path: $BASE_MODEL_PATH_RESOLVED"
+
 echo "Output path: $OUTPUT_PATH"
 echo "Tasks: $TASK_NAMES"
 echo "GPUs: $TOTAL_GPUS"
