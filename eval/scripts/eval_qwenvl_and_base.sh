@@ -1,18 +1,14 @@
 #!/bin/bash
 
 # Evaluate DiffusionVL-QwenVL and Qwen2.5-VL base model on the same task list.
-# Usage:
-#   cd eval
-#   DIFFUSIONVL_MODEL_PATH=/path/to/DiffusionVL-Qwen2.5VL-7B \
-#   BASE_MODEL_PATH=/path/to/Qwen2.5-VL-7B-Instruct \
+
 #   TASK_NAMES="mmmu_val,mme,mmvp,mathvision,mathvista" \
 #   TOTAL_GPUS=8 \
 #   bash scripts/eval_qwenvl_and_base.sh
 
 set -euo pipefail
 
-DIFFUSIONVL_MODEL_PATH="${DIFFUSIONVL_MODEL_PATH:-/path/to/DiffusionVL-Qwen2.5VL-7B}"
-BASE_MODEL_PATH="${BASE_MODEL_PATH:-/path/to/Qwen2.5-VL-7B-Instruct}"
+
 OUTPUT_PATH="${OUTPUT_PATH:-./eval_results/qwenvl_vs_base}"
 TASK_NAMES="${TASK_NAMES:-mmmu_val,mme,mmvp,mathvision,mathvista}"
 TOTAL_GPUS="${TOTAL_GPUS:-8}"
@@ -25,7 +21,6 @@ CONV_TEMPLATE="${CONV_TEMPLATE:-qwen_2_5}"
 DIFFUSIONVL_MODEL="llava_onevision_diffusionvl_qwenvl"
 BASE_MODEL="qwen2_5_vl"
 
-mkdir -p "$OUTPUT_PATH"
 
 IFS=',' read -ra TASKS <<< "$TASK_NAMES"
 
@@ -40,13 +35,7 @@ for task in "${TASKS[@]}"; do
     else
         DIFF_GEN_KWARGS="{\"temperature\":0, \"gen_length\":128, \"steps\":$STEPS, \"max_new_tokens\":128, \"remasking_strategy\": \"low_confidence_static\"}"
     fi
-    DIFF_MODEL_ARGS="pretrained=$DIFFUSIONVL_MODEL_PATH,conv_template=$CONV_TEMPLATE,model_name=diffusionvl_qwenvl,enable_bd3lm=True,bd3lm_block_size=$BLOCK_SIZE"
-    TASK_QUEUE+=("$DIFFUSIONVL_MODEL|$DIFFUSIONVL_MODEL_PATH|$task|$DIFF_GEN_KWARGS|$DIFF_MODEL_ARGS|DiffusionVL-QwenVL")
 
-    # Base model generation settings (no BD3-LM args)
-    BASE_GEN_KWARGS='{"temperature":0,"max_new_tokens":128}'
-    BASE_MODEL_ARGS="pretrained=$BASE_MODEL_PATH"
-    TASK_QUEUE+=("$BASE_MODEL|$BASE_MODEL_PATH|$task|$BASE_GEN_KWARGS|$BASE_MODEL_ARGS|Qwen2.5-VL-Base")
 done
 
 TOTAL_TASKS=${#TASK_QUEUE[@]}
@@ -60,8 +49,7 @@ for ((gpu=0; gpu<TOTAL_GPUS; gpu++)); do
 done
 
 echo "=========================================="
-echo "DiffusionVL model: $DIFFUSIONVL_MODEL_PATH"
-echo "Base model: $BASE_MODEL_PATH"
+
 echo "Output path: $OUTPUT_PATH"
 echo "Tasks: $TASK_NAMES"
 echo "GPUs: $TOTAL_GPUS"

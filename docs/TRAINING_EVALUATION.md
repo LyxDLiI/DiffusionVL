@@ -122,14 +122,14 @@ To evaluate **DiffusionVL-QwenVL** and its **base model (Qwen2.5-VL)** on the sa
 
 ```bash
 cd eval
-DIFFUSIONVL_MODEL_PATH="/path/to/DiffusionVL-Qwen2.5VL-7B" \
-BASE_MODEL_PATH="/path/to/Qwen2.5-VL-7B-Instruct" \
+
 TASK_NAMES="mmmu_val,mme,mmvp,mathvision,mathvista" \
 TOTAL_GPUS=8 \
 bash scripts/eval_qwenvl_and_base.sh
 ```
 
 Notes:
+
 - `eval_qwenvl_and_base.sh` will run both models for each task and save logs/results under `OUTPUT_PATH` (default: `./eval_results/qwenvl_vs_base`).
 - You can override `OUTPUT_PATH`, `BLOCK_SIZE`, and `STEPS` through environment variables.
 
