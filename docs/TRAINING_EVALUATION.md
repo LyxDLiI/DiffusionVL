@@ -130,7 +130,7 @@ bash scripts/eval_qwenvl_and_base.sh
 ```
 
 Notes:
-- If a model path is not found locally, the script will try to download it from Hugging Face Hub into the local cache automatically (set `AUTO_DOWNLOAD_MODELS=0` to disable).
+- If a model path is not found locally, the script will try to download it from Hugging Face Hub into the local cache automatically (set `AUTO_DOWNLOAD_MODELS=0` to disable). If pre-download is unavailable, the script will fall back to passing the repo id directly to lmms-eval/Transformers for on-demand download.
 - `eval_qwenvl_and_base.sh` will run both models for each task and save logs/results under `OUTPUT_PATH` (default: `./eval_results/qwenvl_vs_base`).
 - You can override `OUTPUT_PATH`, `BLOCK_SIZE`, and `STEPS` through environment variables.
 - The script now tracks per-job exit code and returns non-zero if any task fails.

@@ -29,6 +29,11 @@ CONV_TEMPLATE="${CONV_TEMPLATE:-qwen_2_5}"
 DIFFUSIONVL_MODEL="llava_onevision_diffusionvl_qwenvl"
 BASE_MODEL="qwen2_5_vl"
 
+if ! [[ "$TOTAL_GPUS" =~ ^[0-9]+$ ]] || [[ "$TOTAL_GPUS" -lt 1 ]]; then
+    echo "[ERROR] TOTAL_GPUS must be a positive integer, got: $TOTAL_GPUS" >&2
+    exit 1
+fi
+
 resolve_model_path() {
     local model_ref="$1"
 
@@ -43,9 +48,14 @@ resolve_model_path() {
         exit 1
     fi
 
-    echo "[INFO] Local path not found for '$model_ref'. Trying Hugging Face Hub download..." >&2
+    echo "[INFO] Local path not found for '$model_ref'. Trying Hugging Face Hub pre-download..." >&2
 
-    python - "$model_ref" <<'PY'
+    # Best-effort pre-download to local cache. If this environment does not have
+    # huggingface_hub, fall back to passing repo id directly to lmms-eval.
+    local local_path
+    local status
+    set +e
+    local_path=$(python - "$model_ref" <<'PY' 2>/dev/null
 import sys
 
 model_ref = sys.argv[1]
@@ -53,18 +63,33 @@ model_ref = sys.argv[1]
 try:
     from huggingface_hub import snapshot_download
 except Exception:
-    print("[ERROR] huggingface_hub is required for auto download. Install via: pip install huggingface_hub", file=sys.stderr)
-    raise SystemExit(1)
+    raise SystemExit(2)
 
 try:
-    local_path = snapshot_download(repo_id=model_ref)
+    p = snapshot_download(repo_id=model_ref)
 except Exception as e:
     print(f"[ERROR] Failed to download '{model_ref}' from Hugging Face Hub: {e}", file=sys.stderr)
-    print("[ERROR] Provide an existing local path, or a valid Hugging Face repo id (and token if required).", file=sys.stderr)
     raise SystemExit(1)
 
-print(local_path)
+print(p)
 PY
+)
+    status=$?
+    set -e
+
+    if [[ $status -eq 0 ]]; then
+        echo "$local_path"
+        return 0
+    fi
+
+    if [[ $status -eq 2 ]]; then
+        echo "[WARN] huggingface_hub is unavailable; will pass repo id directly: $model_ref" >&2
+        echo "$model_ref"
+        return 0
+    fi
+
+    echo "[ERROR] Provide an existing local path, or a valid Hugging Face repo id (and token if required)." >&2
+    exit 1
 }
 
 trim() {
@@ -128,9 +153,9 @@ done
 
 echo "=========================================="
 echo "DiffusionVL model ref: $DIFFUSIONVL_MODEL_PATH"
-echo "DiffusionVL model path: $DIFFUSIONVL_MODEL_PATH_RESOLVED"
+echo "DiffusionVL model path/ref used: $DIFFUSIONVL_MODEL_PATH_RESOLVED"
 echo "Base model ref: $BASE_MODEL_PATH"
-echo "Base model path: $BASE_MODEL_PATH_RESOLVED"
+echo "Base model path/ref used: $BASE_MODEL_PATH_RESOLVED"
 echo "Auto download models: $AUTO_DOWNLOAD_MODELS"
 echo "Output path: $OUTPUT_PATH"
 echo "Tasks: ${TASKS[*]}"
