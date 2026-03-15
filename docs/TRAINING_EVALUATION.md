@@ -116,11 +116,30 @@ Based on [lmms-eval](https://github.com/EvolvingLMMs-Lab/lmms-eval).
    bash scripts/diffusionvl_qwenvl.sh
    ```
 
+### Quick Start: Compare DiffusionVL-QwenVL vs Qwen2.5-VL Base
+
+To evaluate **DiffusionVL-QwenVL** and its **base model (Qwen2.5-VL)** on the same task set:
+
+```bash
+cd eval
+DIFFUSIONVL_MODEL_PATH="hustvl/DiffusionVL-Qwen2.5VL-7B" \
+BASE_MODEL_PATH="Qwen/Qwen2.5-VL-7B-Instruct" \
+TASK_NAMES="mmmu_val,mme,mmvp,mathvision,mathvista" \
+TOTAL_GPUS=8 \
+bash scripts/eval_qwenvl_and_base.sh
+```
+
+Notes:
+- If a model path is not found locally, the script will try to download it from Hugging Face Hub into the local cache automatically.
+- `eval_qwenvl_and_base.sh` will run both models for each task and save logs/results under `OUTPUT_PATH` (default: `./eval_results/qwenvl_vs_base`).
+- You can override `OUTPUT_PATH`, `BLOCK_SIZE`, and `STEPS` through environment variables.
+
 ### Available Scripts
 
 | Script | Model Type |
 | :--- | :--- |
 | `diffusionvl_qwenvl.sh` | DiffusionVL-QwenVL |
+| `eval_qwenvl_and_base.sh` | DiffusionVL-QwenVL + Qwen2.5-VL Base comparison |
 | `diffusionvl_qwen.sh` | DiffusionVL-Qwen |
 | `llava_llada_bd3lm.sh` | LLaVA-LLaDA-BD3LM |
 | `llava_qwen.sh` | LLaVA-Qwen (AR baseline) |
