@@ -27,18 +27,20 @@ python eval/mme_trajectory/run_mme_trajectory.py \
 
 ## Analyze
 
+The analysis script can read both the trajectory JSONL and the `lmms_eval` sample log. If `--predictions-jsonl` is omitted, it will try to infer the `*_samples_mme.jsonl` file from the run directory.
+
 ```bash
 python eval/mme_trajectory/analyze_mme_trajectory.py \
-  --trajectory-jsonl ./eval/mme_trajectory_runs/run1/trajectory/mme_trajectories.jsonl
+  --trajectory-jsonl ./eval/mme_trajectory_runs/run1/trajectory/mme_trajectories.jsonl \
+  --predictions-jsonl ./eval/mme_trajectory_runs/run1/20260318_samples_mme.jsonl
 ```
 
 ## Metrics
 
-- final-pass accuracy
-- ever-pass accuracy
-- ever-final gap
-- trajectory voting accuracy
-- average flip count
-- earliest correct step
-- stable convergence step
+- sample-level final-pass / ever-pass / vote accuracy
+- pair-level final / ever / vote accuracy grouped by MME `question_id`
+- official-style MME pairwise total/category scores for final, ever, and vote answers
+- average flip count and flip-pattern breakdowns
+- earliest correct step and stable convergence step
+- final-wrong subset analysis
 - offline early-commit simulation via confidence-gap thresholds
